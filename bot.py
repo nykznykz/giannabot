@@ -19,12 +19,27 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 AUTHORIZED_USER_ID = int(os.getenv('AUTHORIZED_USER_ID'))
 OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+MAX_HISTORY_LENGTH = int(os.getenv('MAX_HISTORY_LENGTH', '10'))
 
 # Authorized groups (add group IDs here)
-AUTHORIZED_GROUPS = set()  # You can add group IDs here, e.g., {123456789, 987654321}
+AUTHORIZED_GROUPS = set()
 
 # Conversation history storage
 conversation_history = {}
+
+def manage_conversation_history(chat_id: int, new_message: dict):
+    """Manage conversation history with a sliding window."""
+    if chat_id not in conversation_history:
+        conversation_history[chat_id] = []
+    
+    # Add new message
+    conversation_history[chat_id].append(new_message)
+    
+    # Trim history if it exceeds max length
+    if len(conversation_history[chat_id]) > MAX_HISTORY_LENGTH:
+        # Keep the most recent messages
+        conversation_history[chat_id] = conversation_history[chat_id][-MAX_HISTORY_LENGTH:]
+        logger.info(f"Trimmed conversation history for chat {chat_id} to {MAX_HISTORY_LENGTH} messages")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /start is issued."""
@@ -32,7 +47,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /help is issued."""
-    await update.message.reply_text('Help!')
+    help_text = (
+        "Available commands:\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n"
+        "/authorize - Authorize this group to use the bot\n"
+        "/clear - Clear conversation history\n"
+        f"\nCurrent context window: {MAX_HISTORY_LENGTH} messages"
+    )
+    await update.message.reply_text(help_text)
+
+async def clear_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Clear the conversation history for the current chat."""
+    if not is_authorized(update):
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    chat_id = update.effective_chat.id
+    if chat_id in conversation_history:
+        conversation_history[chat_id] = []
+        await update.message.reply_text("Conversation history cleared.")
+    else:
+        await update.message.reply_text("No conversation history to clear.")
 
 async def authorize_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Authorize a group to use the bot."""
@@ -94,12 +130,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Get the message without the mention
             message = update.message.text.replace(f"@{bot_username}", "").strip()
             
-            # Get or initialize conversation history
-            if chat_id not in conversation_history:
-                conversation_history[chat_id] = []
-            
             # Add message to history
-            conversation_history[chat_id].append({"role": "user", "content": message})
+            manage_conversation_history(chat_id, {"role": "user", "content": message})
             
             try:
                 # Get response from Ollama
@@ -109,7 +141,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 
                 # Add response to history
-                conversation_history[chat_id].append({"role": "assistant", "content": response['message']['content']})
+                manage_conversation_history(chat_id, {"role": "assistant", "content": response['message']['content']})
                 
                 # Send response
                 await update.message.reply_text(response['message']['content'])
@@ -126,6 +158,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("authorize", authorize_group))
+    application.add_handler(CommandHandler("clear", clear_history))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start the Bot

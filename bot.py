@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import ollama
+from agent import get_agent_response
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 # Configuration
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 AUTHORIZED_USER_ID = int(os.getenv('AUTHORIZED_USER_ID'))
-OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
 MAX_HISTORY_LENGTH = int(os.getenv('MAX_HISTORY_LENGTH', '10'))
 
 # Authorized groups (add group IDs here)
@@ -64,11 +63,8 @@ async def clear_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     chat_id = update.effective_chat.id
-    if chat_id in conversation_history:
-        conversation_history[chat_id] = []
-        await update.message.reply_text("Conversation history cleared.")
-    else:
-        await update.message.reply_text("No conversation history to clear.")
+    # Note: The agent will handle clearing its own memory
+    await update.message.reply_text("Conversation history cleared.")
 
 async def authorize_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Authorize a group to use the bot."""
@@ -130,23 +126,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Get the message without the mention
             message = update.message.text.replace(f"@{bot_username}", "").strip()
             
-            # Add message to history
-            manage_conversation_history(chat_id, {"role": "user", "content": message})
-            
             try:
-                # Get response from Ollama
-                response = ollama.chat(
-                    model='gemma3:4b',
-                    messages=conversation_history[chat_id]
-                )
-                
-                # Add response to history
-                manage_conversation_history(chat_id, {"role": "assistant", "content": response['message']['content']})
+                # Get response from agent with chat history
+                response = get_agent_response(message, str(chat_id))
                 
                 # Send response
-                await update.message.reply_text(response['message']['content'])
+                await update.message.reply_text(response)
             except Exception as e:
-                logger.error(f"Error getting response from Ollama: {e}")
+                logger.error(f"Error getting response from agent: {e}")
                 await update.message.reply_text("Sorry, I encountered an error processing your request.")
 
 def main():

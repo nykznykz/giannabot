@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from agent import get_agent_response
+import json
 
 # Load environment variables
 load_dotenv()
@@ -52,6 +53,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - Show this help message\n"
         "/authorize - Authorize this group to use the bot\n"
         "/clear - Clear conversation history\n"
+        "\nYou can also:\n"
+        "- Mention me with @ to get a response\n"
         f"\nCurrent context window: {MAX_HISTORY_LENGTH} messages"
     )
     await update.message.reply_text(help_text)
@@ -105,6 +108,8 @@ def is_authorized(update: Update) -> bool:
     # Any member of an authorized group can use the bot
     return chat_id in AUTHORIZED_GROUPS
 
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming messages."""
     chat_id = update.effective_chat.id
@@ -126,11 +131,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Get the message without the mention
             message = update.message.text.replace(f"@{bot_username}", "").strip()
             
+            # Get reply context if it exists
+            context_message = None
+            if update.message.reply_to_message:
+                context_message = update.message.reply_to_message.text
+            
             try:
-                # Get response from agent with chat history
-                response = get_agent_response(message, str(chat_id))
-                
-                # Send response
+                # Pass both the message and context to the agent
+                response = get_agent_response(message, str(chat_id), context_message)
                 await update.message.reply_text(response)
             except Exception as e:
                 logger.error(f"Error getting response from agent: {e}")

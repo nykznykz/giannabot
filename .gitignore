@@ -35,3 +35,7 @@ ENV/
 .env
 *.log
 conversation_history/ 
+
+
+google.json
+token.json

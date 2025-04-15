@@ -5,6 +5,7 @@ from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
 from dotenv import load_dotenv
 import os
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -30,33 +31,45 @@ tools = [search, calendar_tool]
 # Create a memory instance for each chat
 chat_memories = {}
 
-def get_agent_response(message: str, chat_id: str) -> str:
-    """
-    Get a response from the agent for a given message.
-    
-    Args:
-        message (str): The user's message
-        chat_id (str): The chat ID to maintain conversation history
+def get_agent_response(message: str, chat_id: str, context_message: str = None) -> str:
+    """Get response from the agent with conversation history."""
+    try:
+        # Initialize memory for this chat if not exists
+        if chat_id not in chat_memories:
+            chat_memories[chat_id] = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True,
+                output_key="output"
+            )
         
-    Returns:
-        str: The agent's response
-    """
-    # Get or create memory for this chat
-    if chat_id not in chat_memories:
-        chat_memories[chat_id] = ConversationBufferMemory(memory_key="chat_history")
-    
-    # Create agent with this chat's memory
-    agent = initialize_agent(
-        tools=tools,
-        llm=model,
-        agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
-        verbose=True,
-        memory=chat_memories[chat_id]
-    )
-    
-    # Get response from agent
-    response = agent.run(message)
-    return response
+        # Format the input with context if available
+        if context_message:
+            formatted_message = f"Context from previous message: {context_message}\n\nUser message: {message}"
+        else:
+            formatted_message = message
+            
+        # Create agent with this chat's memory
+        agent = initialize_agent(
+            tools=tools,
+            llm=model,
+            agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+            verbose=True,
+            memory=chat_memories[chat_id]
+        )
+        
+        # Get response from agent
+        response = agent.run(formatted_message)
+        
+        # Update memory with the interaction
+        chat_memories[chat_id].save_context(
+            {"input": formatted_message},
+            {"output": response}
+        )
+        
+        return response
+    except Exception as e:
+        logging.error(f"Error in get_agent_response: {e}")
+        return "I encountered an error processing your request. Please try again."
 
 if __name__ == "__main__":
     # Example usage

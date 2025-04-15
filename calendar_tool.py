@@ -13,8 +13,16 @@ import dateparser
 from dateutil.relativedelta import relativedelta
 
 class GoogleCalendarTool(BaseTool):
-    name = "google_calendar"
-    description = "Create calendar events and send invites. Input should be a JSON string with: title, start_time, end_time, attendees (list of emails), description (optional), location (optional). Times should be in natural language (e.g., 'tomorrow at 2pm', 'next Monday at 3pm')"
+    name = "google_calendar_create_event"
+    description = """Create calendar events and send invites. 
+                    Input should be a JSON string with: 
+                    title, 
+                    start_time, 
+                    end_time, 
+                    attendees (list of emails), 
+                    description (optional), 
+                    location (optional). 
+                    Times should be in natural language (e.g., 'tomorrow at 2pm', 'next Monday at 3pm')"""
     
     service: Optional[Any] = None
 
@@ -75,25 +83,43 @@ class GoogleCalendarTool(BaseTool):
         except Exception as e:
             raise ValueError(f"Could not parse time: {time_str}. Error: {str(e)}")
 
-    def _run(self, query: str) -> str:
+    def _run(self, input_str: str) -> str:
         """Create a calendar event."""
         try:
-            # Parse the input JSON
-            event_data = json.loads(query)
+            # Parse input JSON
+            event_data = json.loads(input_str)
             
             # Validate required fields
-            required_fields = ['title', 'start_time', 'end_time']
-            for field in required_fields:
-                if field not in event_data:
-                    raise ValueError(f"Missing required field: {field}")
+            if not event_data.get("title"):
+                return "Error: Event title is required"
+            if not event_data.get("start_time"):
+                return "Error: Start time is required"
             
-            # Parse and format the times
-            start_time = self._parse_datetime(event_data['start_time'])
-            end_time = self._parse_datetime(event_data['end_time'])
+            # Parse start time
+            start_time = self._parse_datetime(event_data["start_time"])
+            if not start_time:
+                return "Error: Could not parse start time"
             
-            # Create event body
+            # Set default end time if not provided
+            if not event_data.get("end_time"):
+                # Parse start time again to get datetime object
+                start_dt = dateparser.parse(event_data["start_time"], settings={'TIMEZONE': 'Asia/Singapore'})
+                if start_dt:
+                    # Add 1 hour to start time
+                    end_dt = start_dt + timedelta(hours=1)
+                    # Format in RFC3339 with Singapore timezone
+                    end_time = end_dt.astimezone(pytz.timezone('Asia/Singapore')).strftime('%Y-%m-%dT%H:%M:%S%z')
+                else:
+                    return "Error: Could not parse start time for default end time"
+            else:
+                # Parse provided end time
+                end_time = self._parse_datetime(event_data["end_time"])
+                if not end_time:
+                    return "Error: Could not parse end time"
+            
+            # Create event
             event = {
-                'summary': event_data['title'],
+                'summary': event_data["title"],
                 'start': {
                     'dateTime': start_time,
                     'timeZone': 'Asia/Singapore',
@@ -102,24 +128,22 @@ class GoogleCalendarTool(BaseTool):
                     'dateTime': end_time,
                     'timeZone': 'Asia/Singapore',
                 },
-                'attendees': [{'email': email} for email in event_data.get('attendees', [])],
+                'description': event_data.get("description", ""),
+                'location': event_data.get("location", ""),
             }
-
-            # Add optional fields
-            if 'description' in event_data:
-                event['description'] = event_data['description']
-            if 'location' in event_data:
-                event['location'] = event_data['location']
-
+            
+            # Add attendees if provided
+            if event_data.get("attendees"):
+                event['attendees'] = [{'email': email} for email in event_data["attendees"]]
+            
             # Create the event
             event = self.service.events().insert(
                 calendarId='primary',
                 body=event,
-                sendUpdates='all'  # This sends email invites
+                sendUpdates='all'
             ).execute()
-
+            
             return f"Event created: {event.get('htmlLink')}"
-
         except Exception as e:
             return f"Error creating event: {str(e)}"
 

@@ -1,6 +1,7 @@
 from langchain_community.llms import Ollama
 from langchain_community.tools.tavily_search import TavilySearchResults
 from calendar_tool import GoogleCalendarTool
+from contact_tool import ContactTool
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
 from dotenv import load_dotenv
@@ -25,8 +26,11 @@ search = TavilySearchResults(
 # Create the Google Calendar tool
 calendar_tool = GoogleCalendarTool()
 
+# Create the contact lookup tool
+contact_tool = ContactTool()
+
 # Combine all tools
-tools = [search, calendar_tool]
+tools = [search, calendar_tool, contact_tool]
 
 # Create a memory instance for each chat
 chat_memories = {}

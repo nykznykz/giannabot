@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from agent import get_agent_response
+from agent import get_agent_response, chat_memories
 import json
 
 # Load environment variables
@@ -66,7 +66,15 @@ async def clear_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     chat_id = update.effective_chat.id
-    # Note: The agent will handle clearing its own memory
+    
+    # Clear the conversation history
+    if chat_id in conversation_history:
+        conversation_history[chat_id] = []
+    
+    # Clear the agent's memory
+    if str(chat_id) in chat_memories:
+        chat_memories[str(chat_id)].clear()
+    
     await update.message.reply_text("Conversation history cleared.")
 
 async def authorize_group(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -54,7 +54,8 @@ def get_agent_response(message: str, chat_id: str, context_message: str = None) 
             llm=model,
             agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
             verbose=True,
-            memory=chat_memories[chat_id]
+            memory=chat_memories[chat_id],
+            handle_parsing_errors=True
         )
         
         # Get response from agent

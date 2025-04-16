@@ -13,16 +13,16 @@ import dateparser
 from dateutil.relativedelta import relativedelta
 
 class GoogleCalendarTool(BaseTool):
-    name = "google_calendar_create_event"
-    description = """Create calendar events and send invites. 
-                    Input should be a JSON string with: 
-                    title, 
-                    start_time, 
-                    end_time, 
-                    attendees (list of emails), 
-                    description (optional), 
-                    location (optional). 
-                    Times should be in natural language (e.g., 'tomorrow at 2pm', 'next Monday at 3pm')"""
+    name = "google_calendar"
+    description = """A tool for managing Google Calendar events. Available operations:
+                    1. Create events: Input should be a JSON string with: 
+                       operation: "create",
+                       title, start_time, end_time, attendees (list of emails), 
+                       description (optional), location (optional).
+                       Times should be in natural language (e.g., 'tomorrow at 2pm', 'next Monday at 3pm')
+                    2. List events: Input should be a JSON string with:
+                       operation: "list",
+                       start_time (optional), end_time (optional), max_results (optional, default 10)"""
     
     service: Optional[Any] = None
 
@@ -83,12 +83,89 @@ class GoogleCalendarTool(BaseTool):
         except Exception as e:
             raise ValueError(f"Could not parse time: {time_str}. Error: {str(e)}")
 
+    def _list_events(self, params: dict) -> str:
+        """List calendar events in a structured format."""
+        try:
+            # Set default parameters
+            now = datetime.now(pytz.timezone('Asia/Singapore'))
+            start_time = params.get('start_time', now.isoformat())
+            end_time = params.get('end_time', (now + timedelta(days=7)).isoformat())
+            max_results = params.get('max_results', 10)
+
+            # Parse time strings if provided
+            if isinstance(start_time, str):
+                start_time = self._parse_datetime(start_time)
+            if isinstance(end_time, str):
+                end_time = self._parse_datetime(end_time)
+
+            # Get events
+            events_result = self.service.events().list(
+                calendarId='primary',
+                timeMin=start_time,
+                timeMax=end_time,
+                maxResults=max_results,
+                singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+
+            events = events_result.get('items', [])
+            
+            if not events:
+                return "No events found in the specified time range."
+
+            # Format list
+            event_list = []
+            for event in events:
+                start = event['start'].get('dateTime', event['start'].get('date'))
+                end = event['end'].get('dateTime', event['end'].get('date'))
+                
+                # Parse and format times
+                start_dt = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                start_dt = start_dt.astimezone(pytz.timezone('Asia/Singapore'))
+                end_dt = end_dt.astimezone(pytz.timezone('Asia/Singapore'))
+                
+                event_info = {
+                    "id": event['id'],
+                    "title": event['summary'],
+                    "start": start_dt.strftime('%Y-%m-%d %H:%M'),
+                    "end": end_dt.strftime('%H:%M'),
+                    "location": event.get('location', ''),
+                    "description": event.get('description', ''),
+                    "attendees": [attendee['email'] for attendee in event.get('attendees', [])]
+                }
+                event_list.append(event_info)
+
+            # Convert to JSON string for output
+            return json.dumps(event_list, indent=2)
+        except Exception as e:
+            return f"Error listing events: {str(e)}"
+
     def _run(self, input_str: str) -> str:
-        """Create a calendar event."""
+        """Handle calendar operations based on input."""
         try:
             # Parse input JSON
-            event_data = json.loads(input_str)
+            data = json.loads(input_str)
             
+            # Get operation type
+            operation = data.get("operation")
+            if not operation:
+                return "Error: Operation type not specified. Please include 'operation' field with value 'create' or 'list'"
+            
+            # Handle operation based on type
+            if operation == "create":
+                return self._create_event(data)
+            elif operation == "list":
+                return self._list_events(data)
+            else:
+                return f"Error: Invalid operation '{operation}'. Must be one of: create, list"
+                
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+    def _create_event(self, event_data: dict) -> str:
+        """Create a calendar event."""
+        try:
             # Validate required fields
             if not event_data.get("title"):
                 return "Error: Event title is required"

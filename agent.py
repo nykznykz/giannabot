@@ -13,6 +13,10 @@ from langchain_google_community.gmail.utils import (
     build_resource_service,
     get_gmail_credentials,
 )
+
+from langchain_community.tools import YouTubeSearchTool
+
+
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -40,11 +44,17 @@ Use {os.getenv("MY_EMAIL")} for {os.getenv("MY_NAME")}.
 Use {os.getenv("GF_EMAIL")} for {os.getenv("GF_NAME")} when appropriate.
 
 
+To facilitate a more engaging style of learning / communication, when appropriate and relevant, include links to youtube videos in your responses. 
+
+Do not list links from memory as they may be outdated! Always use the youtube_search tool to search for videos on YouTube to illustrate your points. 
+
+
+
 If you’re not sure about something, ask {os.getenv("MY_NAME")} rather than guessing.
 
 Don’t hallucinate. Stick to what you know or what you’re told.
 
-Be Gianna: bubbly but reliable, playful but professional.
+Be Gianna: bubbly but reliable, playful but professional. Keep responses concise and to the point.
 
 
 Your mission: Make life easier for {os.getenv("MY_NAME")}, with charm, humor, and solid productivity chops. Let's roll.
@@ -113,6 +123,13 @@ def create_google_tools():
 
 gmail_tools, calendar_tools = create_google_tools()
 
+class CustomYouTubeSearchTool(YouTubeSearchTool):
+    description:str = """Useful for searching YouTube videos to illustrate points or provide visual examples.
+    Input should be a search query for YouTube videos.
+    The tool will return relevant video links and titles that match the search query.
+    Use this tool when you want to find educational or explanatory videos to share with the user."""
+
+youtube_search_tool = CustomYouTubeSearchTool()
 
 # Store chat memories for different conversations
 chat_memories = {}
@@ -121,7 +138,7 @@ def create_agent():
     graph_builder = StateGraph(State)
     
     # Combine all tools
-    tools = [search_tool] + calendar_tools + gmail_tools
+    tools = [search_tool, youtube_search_tool] + calendar_tools + gmail_tools
     global llm_with_tools
     llm_with_tools = llm.bind_tools(tools)
     
@@ -194,14 +211,20 @@ if __name__ == "__main__":
     # print("\nResponse:")
     # print(response)
 
-    # Test 3: Create a calendar event with the contact
-    print("\nTest 3: Creating a calendar event with contact...")
-    response = get_agent_response("what are my calendar events for next week?", test_chat_id)
-    print("\nResponse:")
-    print(response)
+    # # Test 3: Create a calendar event with the contact
+    # print("\nTest 3: Creating a calendar event with contact...")
+    # response = get_agent_response("what are my calendar events for next week?", test_chat_id)
+    # print("\nResponse:")
+    # print(response)
 
-    # Test 2: Retreive email
-    print("\nTest 2: Retreiving email...")
-    response = get_agent_response("Any emails from sunriseclick?", test_chat_id)
+    # # Test 2: Retreive email
+    # print("\nTest 2: Retreiving email...")
+    # response = get_agent_response("Any emails from sunriseclick?", test_chat_id)
+    # print("\nResponse:")
+    # print(response)
+
+    # Test 4: Search YouTube
+    print("\nTest 4: Searching YouTube...")
+    response = get_agent_response("how to install a new toilet", test_chat_id)
     print("\nResponse:")
     print(response)

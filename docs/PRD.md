@@ -26,11 +26,11 @@ A Telegram bot that integrates with GPT-4o-mini to provide intelligent responses
    - ✅ Manual history clearing via /clear command
 
 5. **API Integrations**
-   - ✅ Google Calendar Integration
+   - ✅ Google Calendar Integration https://python.langchain.com/docs/integrations/tools/google_calendar/
      - Event creation and management
      - Calendar view and search
      - Event reminders and notifications
-   - [ ] Gmail LangChain Toolkit Integration
+   - ✅ Gmail LangChain Toolkit Integration https://python.langchain.com/docs/integrations/tools/gmail/
      - Email search and retrieval
      - Draft creation and management
      - Message and thread handling
@@ -56,7 +56,7 @@ A Telegram bot that integrates with GPT-4o-mini to provide intelligent responses
    - ✅ python-telegram-bot library
    - ✅ OpenAI client library
    - ✅ Environment configuration management
-   - ✅ Google Calendar API client library
+   - ✅ Google Calendar API client library 
    - [ ] LangChain Gmail toolkit
    - [ ] YouTube API client library
    - [ ] OpenWeatherMap API client library

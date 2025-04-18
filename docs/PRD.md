@@ -35,15 +35,9 @@ A Telegram bot that integrates with GPT-4o-mini to provide intelligent responses
      - Draft creation and management
      - Message and thread handling
      - OAuth 2.0 authentication
-   - [ ] YouTube Integration
+   - ✅ YouTube Integration https://python.langchain.com/docs/integrations/tools/youtube/
      - Video search and retrieval
      - Content analysis
-   - [ ] OpenWeatherMap Integration
-     - Weather data retrieval
-     - Location-based weather information
-   - [ ] Passio Nutrition Integration
-     - Nutrition information retrieval
-     - Food analysis capabilities
 
 ## Technical Requirements
 1. **Development Environment**

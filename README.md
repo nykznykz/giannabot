@@ -1,6 +1,6 @@
-# Telegram Bot with Ollama Integration
+# Telegram Bot with GPT-4o-mini Integration
 
-A Telegram bot that integrates with a local Ollama LLM to provide intelligent responses when directly mentioned (@) in private chats and authorized group chats.
+A Telegram bot that integrates with GPT-4o-mini to provide intelligent responses when directly mentioned (@) in private chats and authorized group chats.
 
 ## Setup
 
@@ -18,10 +18,9 @@ A Telegram bot that integrates with a local Ollama LLM to provide intelligent re
    ```
    TELEGRAM_BOT_TOKEN=your_bot_token_here
    AUTHORIZED_USER_ID=your_telegram_user_id
-   OLLAMA_HOST=http://localhost:11434
+   OPENAI_API_KEY=your_openai_api_key
    ```
-5. Make sure Ollama is running locally
-6. Run the bot:
+5. Run the bot:
    ```bash
    python bot.py
    ```
@@ -30,7 +29,7 @@ A Telegram bot that integrates with a local Ollama LLM to provide intelligent re
 
 - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token (obtain from @BotFather)
 - `AUTHORIZED_USER_ID`: Your Telegram user ID (can be obtained from @userinfobot)
-- `OLLAMA_HOST`: URL of your Ollama instance (default: http://localhost:11434)
+- `OPENAI_API_KEY`: Your OpenAI API key for GPT-4o-mini access
 
 ## Usage
 
@@ -44,4 +43,4 @@ A Telegram bot that integrates with a local Ollama LLM to provide intelligent re
 - User authorization
 - Group chat authorization
 - Conversation context preservation
-- Local Ollama LLM integration 
+- GPT-4o-mini integration 

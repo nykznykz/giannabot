@@ -37,5 +37,5 @@ ENV/
 *.log
 conversation_history/ 
 data/contacts.json
-google.json
+credentials.json
 token.json

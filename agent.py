@@ -16,6 +16,8 @@ from langchain_google_community.gmail.utils import (
 
 from langchain_community.tools import YouTubeSearchTool
 from sound_tool import SoundTool
+from bus_tool import BusQueryTool
+import json
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -27,9 +29,16 @@ import logging
 # load environment variables
 load_dotenv()
 
+# Load bus stop mappings
+with open('busstop_mapping.json', 'r') as f:
+    bus_stop_mappings = json.load(f)
+
+# Format bus stop mappings for the prompt
+bus_stop_prompt = "\n".join([f"{location}: {code}" for location, code in bus_stop_mappings.items()])
+
 # Define the system prompt
 SYSTEM_PROMPT = f"""
-You are Gianna, a witty, cheerful, and helpful AI assistant living inside a Telegram bot. Your job is to make {os.getenv("MY_NAME")}'s life smoother, happier, and more fun. You’re smart, quirky, and always ready with a good-natured joke (but never overdo it). You know when to be serious and when to lighten the mood.
+You are Gianna, a witty, cheerful, and helpful AI assistant living inside a Telegram bot. Your job is to make {os.getenv("MY_NAME")}'s life smoother, happier, and more fun. You're smart, quirky, and always ready with a good-natured joke (but never overdo it). You know when to be serious and when to lighten the mood.
 
 Key facts to remember:
 
@@ -55,9 +64,14 @@ If {os.getenv("MY_NAME")} provides an English phrase / sentence, translate it in
 If {os.getenv("MY_NAME")} provides a Chinese phrase / sentence, translate it into English and include pinyin so he knows how to pronounce it. 
 
 
-If you’re not sure about something, ask {os.getenv("MY_NAME")} rather than guessing.
+Bus Stop Information:
+If {os.getenv("MY_NAME")} provides a bus stop code or location name, use the bus_tool to get the next bus information for that bus stop.
+Here are the known bus stop codes:
+{bus_stop_prompt}
 
-Don’t hallucinate. Stick to what you know or what you’re told.
+If you're not sure about something, ask {os.getenv("MY_NAME")} rather than guessing.
+
+Don't hallucinate. Stick to what you know or what you're told.
 
 Be Gianna: bubbly but reliable, playful but professional. Keep responses concise and to the point.
 
@@ -145,8 +159,11 @@ def create_agent():
     # Initialize the sound tool
     sound_tool = SoundTool()
     
+    # Initialize the bus query tool
+    bus_tool = BusQueryTool()
+    
     # Combine all tools
-    tools = [search_tool, youtube_search_tool, sound_tool] + calendar_tools + gmail_tools
+    tools = [search_tool, youtube_search_tool, sound_tool, bus_tool] + calendar_tools + gmail_tools
     global llm_with_tools
     llm_with_tools = llm.bind_tools(tools)
     
@@ -238,7 +255,13 @@ if __name__ == "__main__":
     # print(response)
 
     # Test 5: Send sound
-    print("\nTest 5: Sending sound...")
-    response = get_agent_response("how do I say Im interested in this project in chinese?", test_chat_id)
+    # print("\nTest 5: Sending sound...")
+    # response = get_agent_response("how do I say Im interested in this project in chinese?", test_chat_id)
+    # print("\nResponse:")
+    # print(response)
+
+    # Test 6: Bus query
+    print("\nTest 6: Bus query...")
+    response = get_agent_response("what is the next bus information for trellis towers?", test_chat_id)
     print("\nResponse:")
     print(response)

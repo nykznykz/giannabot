@@ -44,3 +44,9 @@ token.json
 data/output.mp3
 browser_agent.py
 sound.py
+.ipynb_checkpoints/*
+busstop_mapping.json
+bus_query.py
+test.ipynb
+weather.py
+get_user_location.py

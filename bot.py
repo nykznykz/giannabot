@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from agent import get_agent_response, chat_memories
 import json
-
+from image_tool import get_photo_description
 # Load environment variables
 load_dotenv()
 
@@ -131,6 +131,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_id > 0 and not is_authorized(update):
         logger.info(f"Unauthorized private chat attempt from user {update.effective_user.id}")
         return
+    
+    print(update.message)
 
     # Check if bot is mentioned
     if update.message and update.message.text:
@@ -142,7 +144,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Get reply context if it exists
             context_message = None
             if update.message.reply_to_message:
-                context_message = update.message.reply_to_message.text
+                if update.message.reply_to_message.location:
+                    # This is a location message
+                    location = update.message.reply_to_message.location
+                    context_message = f"Coordinates Provided (Latitude: {location.latitude}, Longitude: {location.longitude})"
+                    # Now you can access location.latitude and location.longitude
+                else:
+                    # This is not a location message
+                    context_message = update.message.reply_to_message.text
             
             try:
                 # Pass both the message and context to the agent
@@ -151,6 +160,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error getting response from agent: {e}")
                 await update.message.reply_text("Sorry, I encountered an error processing your request.")
+    elif update.message and update.message.sticker:
+        print("received sticker")
+        file = await context.bot.get_file(update.message.sticker.file_id)
+        await file.download_to_drive("data/sticker.jpg")
+        message = "Received a sticker. Saved in data/sticker.jpg"
+        try: 
+            response = get_agent_response(message, str(chat_id), context_message=None)
+            # reply = get_photo_description("data/sticker.jpg")
+            await update.message.reply_text(response)
+        except Exception as e:
+            logger.error(f"Error getting response from agent: {e}")
+            await update.message.reply_text("Sorry, I encountered an error processing your request.")
+    else:
+        print(update.message)
+        
 
 def main():
     """Start the bot."""
@@ -163,7 +187,7 @@ def main():
     application.add_handler(CommandHandler("authorize", authorize_group))
     application.add_handler(CommandHandler("clear", clear_history))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
+    application.add_handler(MessageHandler(filters.Sticker.ALL, handle_message))
     # Start the Bot
     application.run_polling()
 

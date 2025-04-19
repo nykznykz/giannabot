@@ -50,3 +50,7 @@ bus_query.py
 test.ipynb
 weather.py
 get_user_location.py
+data/all_busstops.csv
+data/photo.jpg
+data/sticker.jpg
+get_photo.py

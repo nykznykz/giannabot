@@ -1,10 +1,12 @@
-from typing import Dict, List, Optional, Type
 from datetime import datetime
 from dotenv import load_dotenv
 import os
 from singapore_data import LTADataMallBus
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Type
+import pandas as pd
+import numpy as np
 
 load_dotenv()
 
@@ -89,9 +91,83 @@ class BusQueryTool(BaseTool):
     async def _arun(self, bus_stop_code: str) -> str:
         """Async version of the tool."""
         return self._run(bus_stop_code)
+    
+
+class NearestBusStopQueryInput(BaseModel):
+    target_lat: float = Field(description="The latitude of the query location")
+    target_lon: float = Field(description="The longitude of the query location")
+
+class NearestBusStopQueryTool(BaseTool):
+    name: str = "nearest_bus_stop_query"
+    description: str = "Query nearest bus stops given a latitude and longitude. Returns the bus stop code, description and distance in km."
+    args_schema: Type[BaseModel] = NearestBusStopQueryInput
+
+    def _run(self, target_lat: float, target_lon: float) -> str:
+        """
+        Query bus stop information for a specific bus stop.
+        
+        Args:
+            target_lat (float): The latitude of the query location
+            target_lon (float): The longitude of the query location
+        """
+        nearest_stops = get_nearest_stops(target_lat, target_lon)
+        return nearest_stops
+    
+
+def get_nearest_stops(target_lat, target_lon):
+    # Your bus stop dataframe (e.g., all_busstops)
+    # Let's say it's already loaded and named `all_busstops`
+    all_busstops = pd.read_csv('data/all_busstops.csv')
+    
+    # Target coordinates
+    
+    # Convert degrees to radians
+    lat_rad = np.radians(all_busstops['Latitude'])
+    lon_rad = np.radians(all_busstops['Longitude'])
+    target_lat_rad = np.radians(target_lat)
+    target_lon_rad = np.radians(target_lon)
+    
+    # Haversine formula
+    dlat = lat_rad - target_lat_rad
+    dlon = lon_rad - target_lon_rad
+    
+    a = np.sin(dlat/2.0)**2 + np.cos(target_lat_rad) * np.cos(lat_rad) * np.sin(dlon/2.0)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    earth_radius_km = 6371
+    distances = earth_radius_km * c
+    
+    # Add distance to DataFrame
+    all_busstops['Distance_km'] = distances
+    
+    # Get N nearest bus stops
+    N = 5
+    nearest_stops = all_busstops.nsmallest(N, 'Distance_km')
+    
+    nearest_stops = nearest_stops[['BusStopCode', 'Description', 'Distance_km']]
+    return format_nearest_stops_markdown(nearest_stops,target_lat, target_lon)
+
+def format_nearest_stops_markdown(nearest_stops_df, latitude, longitude):
+    markdown = f"### 🚌 Nearest Bus Stops\n"
+    markdown += f"**Reference Point:**  \nLatitude: `{latitude}`  \nLongitude: `{longitude}`  \n\n"
+    markdown += f"**Top {len(nearest_stops_df)} closest bus stops:**\n\n"
+
+    for idx, row in nearest_stops_df.iterrows():
+        markdown += (
+            f"{nearest_stops_df.index.get_loc(idx)+1}. **{row['Description']}**\n"
+            f"   - 🆔 Bus Stop Code: `{row['BusStopCode']}`\n"
+            f"   - 📏 Distance: `{row['Distance_km']:.3f} km`\n\n"
+        )
+
+    return markdown
 
 # Example usage
 if __name__ == "__main__":
     tool = BusQueryTool()
     result = tool.run("52071")
     print(result) 
+    tool = NearestBusStopQueryTool()
+    result = tool.run({
+    "target_lat": 1.330638,
+    "target_lon": 103.842668
+})
+    print(result)

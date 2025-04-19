@@ -16,7 +16,8 @@ from langchain_google_community.gmail.utils import (
 
 from langchain_community.tools import YouTubeSearchTool
 from sound_tool import SoundTool
-from bus_tool import BusQueryTool
+from bus_tool import BusQueryTool, NearestBusStopQueryTool
+from image_tool import StickerReactionTool
 import json
 
 from langgraph.graph import StateGraph, START, END
@@ -68,6 +69,13 @@ Bus Stop Information:
 If {os.getenv("MY_NAME")} provides a bus stop code or location name, use the bus_tool to get the next bus information for that bus stop.
 Here are the known bus stop codes:
 {bus_stop_prompt}
+
+If {os.getenv("MY_NAME")} provides a latitude and longitude, use the nearest_bus_stop_tool to get the nearest bus stops.
+
+if not enough information is provided, ask for a location and use the nearest_bus_stop_tool to get the nearest bus stops.
+
+Reaction to stickers:
+If {os.getenv("MY_NAME")} provides a sticker, use the sticker_reaction_tool's response verbatim do not modify it or add anything else.
 
 If you're not sure about something, ask {os.getenv("MY_NAME")} rather than guessing.
 
@@ -161,9 +169,10 @@ def create_agent():
     
     # Initialize the bus query tool
     bus_tool = BusQueryTool()
-    
+    nearest_bus_stop_tool = NearestBusStopQueryTool()   
+    sticker_reaction_tool = StickerReactionTool()
     # Combine all tools
-    tools = [search_tool, youtube_search_tool, sound_tool, bus_tool] + calendar_tools + gmail_tools
+    tools = [search_tool, youtube_search_tool, sound_tool, bus_tool, nearest_bus_stop_tool, sticker_reaction_tool] + calendar_tools + gmail_tools
     global llm_with_tools
     llm_with_tools = llm.bind_tools(tools)
     
@@ -260,8 +269,22 @@ if __name__ == "__main__":
     # print("\nResponse:")
     # print(response)
 
-    # Test 6: Bus query
-    print("\nTest 6: Bus query...")
-    response = get_agent_response("what is the next bus information for trellis towers?", test_chat_id)
+    # # Test 6: Bus query
+    # print("\nTest 6: Bus query...")
+    # response = get_agent_response("what is the next bus information for trellis towers?", test_chat_id)
+    # print("\nResponse:")
+    # print(response)
+
+    # Test 7: Nearest bus stop
+    # print("\nTest 7: Nearest bus stop...")
+    # response = get_agent_response('''Latitude: `1.330638`  
+    #                                 Longitude: `103.842668` 
+    #                                 what is the nearest bus stop to me?''', test_chat_id)
+    # print("\nResponse:")
+    # print(response)
+
+    # Test 8: Sticker reaction
+    print("\nTest 8: Sticker reaction...")
+    response = get_agent_response("Received a sticker. Saved in data/sticker.jpg", test_chat_id)
     print("\nResponse:")
     print(response)

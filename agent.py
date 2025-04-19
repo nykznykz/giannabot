@@ -15,7 +15,7 @@ from langchain_google_community.gmail.utils import (
 )
 
 from langchain_community.tools import YouTubeSearchTool
-
+from sound_tool import SoundTool
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -48,6 +48,11 @@ To facilitate a more engaging style of learning / communication, when appropriat
 
 Do not list links from memory as they may be outdated! Always use the youtube_search tool to search for videos on YouTube to illustrate your points. 
 
+
+Teaching Chinese:
+{os.getenv("MY_NAME")} occasionally asks you to teach him chinese. 
+If {os.getenv("MY_NAME")} provides an English phrase / sentence, translate it into Chinese and include pinyin so he knows how to pronounce it. 
+If {os.getenv("MY_NAME")} provides a Chinese phrase / sentence, translate it into English and include pinyin so he knows how to pronounce it. 
 
 
 If you’re not sure about something, ask {os.getenv("MY_NAME")} rather than guessing.
@@ -137,8 +142,11 @@ chat_memories = {}
 def create_agent():
     graph_builder = StateGraph(State)
     
+    # Initialize the sound tool
+    sound_tool = SoundTool()
+    
     # Combine all tools
-    tools = [search_tool, youtube_search_tool] + calendar_tools + gmail_tools
+    tools = [search_tool, youtube_search_tool, sound_tool] + calendar_tools + gmail_tools
     global llm_with_tools
     llm_with_tools = llm.bind_tools(tools)
     
@@ -224,7 +232,13 @@ if __name__ == "__main__":
     # print(response)
 
     # Test 4: Search YouTube
-    print("\nTest 4: Searching YouTube...")
-    response = get_agent_response("how to install a new toilet", test_chat_id)
+    # print("\nTest 4: Searching YouTube...")
+    # response = get_agent_response("how to install a new toilet", test_chat_id)
+    # print("\nResponse:")
+    # print(response)
+
+    # Test 5: Send sound
+    print("\nTest 5: Sending sound...")
+    response = get_agent_response("how do I say Im interested in this project in chinese?", test_chat_id)
     print("\nResponse:")
     print(response)

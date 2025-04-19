@@ -53,11 +53,73 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - Show this help message\n"
         "/authorize - Authorize this group to use the bot\n"
         "/clear - Clear conversation history\n"
+        "/get_haircut_times - Get the available times for a haircut\n"
+        "/get_booking_details - Get the booking details for a haircut\n"
         "\nYou can also:\n"
         "- Mention me with @ to get a response\n"
         f"\nCurrent context window: {MAX_HISTORY_LENGTH} messages"
     )
     await update.message.reply_text(help_text)
+
+async def get_haircut_times_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    
+    # For groups, check group authorization
+    if chat_id < 0 and chat_id not in AUTHORIZED_GROUPS:
+        logger.info(f"Unauthorized group access attempt in chat {chat_id}")
+        return
+
+    # For private chats, check user authorization
+    if chat_id > 0 and not is_authorized(update):
+        logger.info(f"Unauthorized private chat attempt from user {update.effective_user.id}")
+        return
+    """Get the available times for a haircut."""
+    await update.message.reply_text("Getting haircut times...")
+    from haircut_tool import get_slots
+    # Get the screenshot of available slots
+    await get_slots()
+    # Send the image
+    with open("haircut_slots.png", "rb") as photo:
+        await update.message.reply_photo(photo, caption="Available haircut slots")
+
+async def get_booking_details_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    
+    # For groups, check group authorization
+    if chat_id < 0 and chat_id not in AUTHORIZED_GROUPS:
+        logger.info(f"Unauthorized group access attempt in chat {chat_id}")
+        return
+
+    # For private chats, check user authorization
+    if chat_id > 0 and not is_authorized(update):
+        logger.info(f"Unauthorized private chat attempt from user {update.effective_user.id}")
+        return
+    """Get the available times for a haircut."""
+    from haircut_tool import book_slot
+    raw = update.message.text.replace("/get_booking_details ", "")
+
+    from datetime import datetime, timezone, timedelta
+
+    # Parse it
+    dt = datetime.strptime(raw, "%Y%m%d %H%M")
+
+    # Add timezone offset (UTC+8)
+    dt = dt.replace(tzinfo=timezone(timedelta(hours=8)))
+
+    # Format it in ISO 8601
+    iso_string = dt.isoformat()
+
+    print(iso_string)
+
+    await update.message.reply_text(f"Getting booking details for {dt}...")
+    # Get the screenshot of available slots
+    await book_slot(iso_string)
+    # Send the image
+    with open("haircut_form.png", "rb") as photo:
+        await update.message.reply_photo(photo, caption="Booking details form")
+
+    with open("haircut_confirmation.png", "rb") as photo:
+        await update.message.reply_photo(photo, caption="Booking detail confirmation")
 
 async def clear_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Clear the conversation history for the current chat."""
@@ -186,6 +248,8 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("authorize", authorize_group))
     application.add_handler(CommandHandler("clear", clear_history))
+    application.add_handler(CommandHandler("get_haircut_times", get_haircut_times_command))
+    application.add_handler(CommandHandler("get_booking_details", get_booking_details_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.Sticker.ALL, handle_message))
     # Start the Bot

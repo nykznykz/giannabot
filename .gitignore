@@ -54,3 +54,7 @@ data/all_busstops.csv
 data/photo.jpg
 data/sticker.jpg
 get_photo.py
+haircut_confirmation.png
+haircut_form.png
+haircut_slots.png
+haircut_tool.py
